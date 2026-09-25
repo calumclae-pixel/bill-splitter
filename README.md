@@ -1,0 +1,2 @@
+# bill-splitter
+Bill splitter
