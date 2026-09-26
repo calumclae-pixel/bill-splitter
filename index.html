@@ -24,7 +24,7 @@ input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px
 </style>
 </head>
 <body>
-<header><h1>🍽️ Bill Splitter</h1><p>Sexy Meat Albufeira · 25 Sep 2026 · €366.25</p></header>
+<header><h1>🍽️ Bill Splitter</h1><p id="headerSub">Sexy Meat Albufeira · 25 Sep 2026 · €366.25</p></header>
 <main>
 <section class="card">
 <h2>Who's paying?</h2>
@@ -32,9 +32,18 @@ input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px
 <div id="people" class="people"></div>
 </section>
 <section class="card">
+<h2>Payment currency</h2>
+<div class="row" style="margin-bottom:10px"><button id="eurBtn" class="blue" onclick="setCurrency('EUR')">🇪🇺 EUR</button><button id="gbpBtn" class="grey" onclick="setCurrency('GBP')">🇬🇧 GBP</button></div>
+<div id="gbpBox" style="display:none">
+  <label class="muted" for="paidGbp">Actual amount paid in GBP</label>
+  <div class="row" style="margin-top:5px"><input id="paidGbp" inputmode="decimal" type="number" step="0.01" min="0.01" value="340.60" onchange="updatePaidGbp()"><span style="display:flex;align-items:center;font-weight:750;padding:0 4px">£</span></div>
+  <p class="muted" style="margin:7px 0 0">The app scales the €366.25 receipt to your actual GBP payment. It does <b>not</b> use the current exchange rate.</p>
+</div>
+</section>
+<section class="card">
 <h2>Bill</h2>
 <div class="stats">
-<div class="stat"><small>Total</small><b>€366.25</b></div><div class="stat"><small>Assigned</small><b id="assigned">€0.00</b></div>
+<div class="stat"><small>Total</small><b id="displayTotal">€366.25</b></div><div class="stat"><small>Assigned</small><b id="assigned">€0.00</b></div>
 <div class="stat"><small>Remaining</small><b id="remaining">€366.25</b></div><div class="stat"><small>People</small><b id="count">0</b></div>
 </div>
 <p class="muted">Items are shown in English. The original Portuguese receipt wording is shown underneath for reference.</p>
@@ -59,8 +68,13 @@ const items=[
 ];
 let people=JSON.parse(localStorage.getItem("bs2_people")||"[]");
 let a=JSON.parse(localStorage.getItem("bs2_assign")||"{}");
-const money=n=>"€"+n.toFixed(2), unit=i=>items[i][2]/items[i][1];
-function save(){localStorage.setItem("bs2_people",JSON.stringify(people));localStorage.setItem("bs2_assign",JSON.stringify(a))}
+let currency=localStorage.getItem("bs2_currency")||"EUR";
+let paidGbp=parseFloat(localStorage.getItem("bs2_paid_gbp")||"340.60");
+const money=n=>(currency==="GBP"?"£":"€")+n.toFixed(2);
+const unit=i=>items[i][2]/items[i][1];
+function scale(){return currency==="GBP" ? (paidGbp>0?paidGbp/TOTAL:1) : 1}
+function displayValue(eur){return eur*scale()}
+function save(){localStorage.setItem("bs2_people",JSON.stringify(people));localStorage.setItem("bs2_assign",JSON.stringify(a));localStorage.setItem("bs2_currency",currency);localStorage.setItem("bs2_paid_gbp",String(paidGbp))}
 function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function addPerson(){let x=document.getElementById("name"),n=x.value.trim();if(!n)return;if(people.includes(n)){alert("That name is already there.");return}people.push(n);x.value="";save();render()}
 document.getElementById("name").addEventListener("keydown",e=>{if(e.key==="Enter")addPerson()});
@@ -70,17 +84,20 @@ function setQty(i,p,v){a[i]=a[i]||{};let used=Object.keys(a[i]).filter(x=>+x!==p
 function tap(i,p){setQty(i,p,qty(i,p)?0:1)}
 function equalItem(i){if(!people.length)return;let q=items[i][1],base=Math.floor(q/people.length),rem=q-base*people.length;a[i]={};people.forEach((_,p)=>a[i][p]=base+(p<rem?1:0));save();render()}
 function equalAll(){if(!people.length){alert("Add friends first.");return}items.forEach((_,i)=>equalItem(i))}
-function totals(){return people.map((_,p)=>items.reduce((s,it,i)=>s+qty(i,p)*unit(i),0))}
+function totals(){return people.map((_,p)=>displayValue(items.reduce((s,it,i)=>s+qty(i,p)*unit(i),0)))}
 function render(){
 document.getElementById("people").innerHTML=people.length?people.map((n,i)=>`<span class="pill">${esc(n)} <button onclick="removePerson(${i})">×</button></span>`).join(""):'<span class="muted">No friends added yet.</span>';
 document.getElementById("count").textContent=people.length;
-document.getElementById("items").innerHTML=items.map((it,i)=>{let assigned=people.reduce((s,_,p)=>s+qty(i,p),0),remain=it[1]-assigned;return `<div class="item"><div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[3]} · ${it[1]} × ${money(unit(i))}</div></div><div class="itemprice">${money(it[2])}</div></div><div class="assigns">${people.map((n,p)=>`<button class="personbtn ${qty(i,p)?'on':''}" onclick="tap(${i},${p})">${esc(n)}${qty(i,p)?` ×${qty(i,p)}`:''}</button>`).join("")}</div><div class="itemfoot"><span class="${remain?'warning':'ok'}">${remain?remain+" unassigned · "+money(remain*unit(i)):"Fully assigned"}</span><button class="grey" onclick="equalItem(${i})">Split</button></div></div>`}).join("");
-let t=totals(),assigned=t.reduce((s,x)=>s+x,0);document.getElementById("assigned").textContent=money(assigned);document.getElementById("remaining").textContent=money(Math.max(0,TOTAL-assigned));
+document.getElementById("items").innerHTML=items.map((it,i)=>{let assigned=people.reduce((s,_,p)=>s+qty(i,p),0),remain=it[1]-assigned;return `<div class="item"><div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[3]} · ${it[1]} × ${money(displayValue(unit(i)))}</div></div><div class="itemprice">${money(displayValue(it[2]))}</div></div><div class="assigns">${people.map((n,p)=>`<button class="personbtn ${qty(i,p)?'on':''}" onclick="tap(${i},${p})">${esc(n)}${qty(i,p)?` ×${qty(i,p)}`:''}</button>`).join("")}</div><div class="itemfoot"><span class="${remain?'warning':'ok'}">${remain?remain+" unassigned · "+money(displayValue(remain*unit(i))):"Fully assigned"}</span><button class="grey" onclick="equalItem(${i})">Split</button></div></div>`}).join("");
+let t=totals(),assigned=t.reduce((s,x)=>s+x,0);document.getElementById("assigned").textContent=money(assigned);document.getElementById("remaining").textContent=money(Math.max(0,displayValue(TOTAL)-assigned));document.getElementById("displayTotal").textContent=money(displayValue(TOTAL));document.getElementById("headerSub").textContent="Sexy Meat Albufeira · 25 Sep 2026 · "+money(displayValue(TOTAL));
 document.getElementById("results").innerHTML=people.length?people.map((n,p)=>`<div class="result"><span>${esc(n)}</span><span class="amount">${money(t[p])}</span></div>`).join(""):'<p class="muted">Add friends above.</p>';
 }
-async function shareTotals(){let t=totals(),s="Bill Splitter — €366.25\n\n"+people.map((n,i)=>n+": "+money(t[i])).join("\n");if(navigator.share){try{await navigator.share({title:"Bill Splitter",text:s})}catch(e){}}else{await navigator.clipboard.writeText(s);alert("Totals copied.")}}
+async function shareTotals(){let t=totals(),s="Bill Splitter — "+money(displayValue(TOTAL))+"\n"+(currency==="GBP"?"Scaled from €366.25 using actual payment of £"+paidGbp.toFixed(2)+"\n\n":"\n")+people.map((n,i)=>n+": "+money(t[i])).join("\n");if(navigator.share){try{await navigator.share({title:"Bill Splitter",text:s})}catch(e){}}else{await navigator.clipboard.writeText(s);alert("Totals copied.")}}
+function setCurrency(c){currency=c;save();renderCurrency();render()}
+function updatePaidGbp(){let v=parseFloat(document.getElementById("paidGbp").value);if(isFinite(v)&&v>0)paidGbp=v;save();render()}
+function renderCurrency(){document.getElementById("gbpBox").style.display=currency==="GBP"?"block":"none";document.getElementById("eurBtn").className=currency==="EUR"?"blue":"grey";document.getElementById("gbpBtn").className=currency==="GBP"?"blue":"grey";document.getElementById("paidGbp").value=paidGbp.toFixed(2)}
 function clearAll(){if(confirm("Clear everyone and all assignments?")){people=[];a={};save();render()}}
-render();
+renderCurrency();render();
 </script>
 </body>
 </html>
