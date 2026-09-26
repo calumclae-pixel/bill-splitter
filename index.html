@@ -16,7 +16,7 @@ input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px
 .people{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.pill{background:#eef2ff;border-radius:999px;padding:7px 10px;font-size:13px}.pill button{padding:0 5px;margin-left:4px;background:none;color:#64748b}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.stat{background:#f8fafc;border-radius:12px;padding:11px}.stat small{display:block;color:#6b7280}.stat b{font-size:20px}
 .item{padding:13px 0;border-top:1px solid #e8ebf0}.item:first-child{border-top:0}.itemtop{display:flex;justify-content:space-between;gap:10px}.itemname{font-weight:700}.itemsub{font-size:12px;color:#697386;margin-top:2px}.itemprice{font-weight:750;white-space:nowrap}
-.assigns{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.personbtn{border:1px solid #d9dee7;background:white;padding:8px 10px}.personbtn.on{background:#dbeafe;border-color:#60a5fa;color:#1d4ed8}
+.assigns{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.personbtn{border:1px solid #d9dee7;background:white;padding:8px 10px}.personbtn.on{background:#dbeafe;border-color:#60a5fa;color:#1d4ed8}.sharepanel{margin-top:9px;padding:10px;background:#f8fafc;border-radius:11px}.sharepanel .personbtn{padding:7px 9px}.shareactions{display:flex;gap:7px;margin-top:8px}.shareactions button{flex:1}
 .itemfoot{display:flex;justify-content:space-between;align-items:center;margin-top:9px}.warning{color:#b91c1c;font-size:12px}.ok{color:#15803d;font-size:12px}
 .result{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding:12px 0}.result:first-child{border-top:0}.amount{font-weight:800;font-size:18px}
 .uploadrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.uploadrow input[type=file]{display:none}.uploadbtn{display:inline-block;cursor:pointer}.progress{height:8px;background:#eef1f5;border-radius:99px;overflow:hidden;margin-top:9px}.progress>div{height:100%;width:0;background:#2563eb;transition:width .2s}.preview{max-width:100%;max-height:220px;border-radius:12px;margin-top:10px;display:none}.editgrid{display:grid;grid-template-columns:1fr 70px 90px 34px;gap:6px;align-items:center;margin-top:8px}.editgrid input{width:100%;padding:8px}.smallbtn{padding:7px 9px;font-size:12px}.bottom{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #ddd;padding:9px 14px calc(9px + env(safe-area-inset-bottom));display:flex;gap:8px;z-index:20}.bottom button{flex:1}
@@ -29,7 +29,7 @@ input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px
 <section class="card">
 <h2>Who's paying?</h2>
 <div class="row"><input id="name" placeholder="Friend's name" autocomplete="off"><button class="blue" onclick="addPerson()">Add</button></div>
-<div id="people" class="people"></div>
+<div id="people" class="people"></div><p class="muted" style="margin:9px 0 0">Your people are saved on this device, so they will stay here when you load another bill.</p>
 </section>
 <section class="card">
 <h2>Use a new bill</h2>
@@ -41,6 +41,15 @@ input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px
 <div id="ocrStatus" class="muted" style="margin-top:8px">Upload a clear photo of the receipt. The app will read the item lines and let you check/edit them before using the new bill.</div>
 <div id="ocrProgress" class="progress" style="display:none"><div id="ocrBar"></div></div>
 <div id="detectedEditor" style="display:none;margin-top:12px"></div>
+</section>
+<section class="card">
+<h2>Saved bills</h2>
+<div class="row">
+<input id="billSaveName" placeholder="Bill name (e.g. Albufeira dinner)" autocomplete="off">
+<button class="blue" onclick="saveCurrentBill()">Save bill</button>
+</div>
+<div id="savedBills" style="margin-top:10px"></div>
+<p class="muted" style="margin:9px 0 0">Saved bills stay on this device, including the bill items, assignments and GBP scaling amount.</p>
 </section>
 <section class="card">
 <h2>Payment currency</h2>
@@ -57,7 +66,7 @@ input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px
 <div class="stat"><small>Total</small><b id="displayTotal">€366.25</b></div><div class="stat"><small>Assigned</small><b id="assigned">€0.00</b></div>
 <div class="stat"><small>Remaining</small><b id="remaining">€366.25</b></div><div class="stat"><small>People</small><b id="count">0</b></div>
 </div>
-<p class="muted">Items are shown in English. The original Portuguese receipt wording is shown underneath for reference.</p>
+<p class="muted">Items are shown in English. The original Portuguese receipt wording is shown underneath for reference. Use <b>Split between</b> to divide one item between selected people, including fractions such as ½ or ⅓ of an item.</p>
 </section>
 <section class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Items</h2><button class="grey" onclick="equalAll()">Split all equally</button></div>
@@ -90,20 +99,51 @@ const unit=i=>items[i][2]/items[i][1];
 function scale(){return currency==="GBP" ? (paidGbp>0?paidGbp/billTotal():1) : 1}
 function displayValue(eur){return eur*scale()}
 function save(){localStorage.setItem("bs2_items",JSON.stringify(items));localStorage.setItem("bs2_bill_title",billTitle);localStorage.setItem("bs2_people",JSON.stringify(people));localStorage.setItem("bs2_assign",JSON.stringify(a));localStorage.setItem("bs2_currency",currency);localStorage.setItem("bs2_paid_gbp",String(paidGbp))}
+function savedBills(){return JSON.parse(localStorage.getItem("bs2_saved_bills")||"[]")}
+function saveCurrentBill(){
+  let input=document.getElementById("billSaveName");
+  let name=input.value.trim()||billTitle||"Saved bill";
+  const assignments=items.map((_,i)=>{const out={};Object.keys(a[i]||{}).forEach(p=>{const person=people[+p];if(person&&qty(i,+p)>0)out[person]=qty(i,+p)});return out});
+  const list=savedBills();
+  list.unshift({id:Date.now(),name,date:new Date().toLocaleString(),billTitle,items:items.map(x=>[...x]),assignments,currency,paidGbp});
+  localStorage.setItem("bs2_saved_bills",JSON.stringify(list.slice(0,50)));
+  input.value="";renderSavedBills();
+  alert("Bill saved.");
+}
+function loadSavedBill(id){
+  const saved=savedBills().find(x=>x.id===id);if(!saved)return;
+  if(!confirm("Load \""+saved.name.replace(/\\/g,"/")+"\"? Your current bill and assignments will be replaced."))return;
+  items=(saved.items||[]).map(x=>[...x]);billTitle=saved.billTitle||saved.name||"Saved bill";currency=saved.currency||"EUR";paidGbp=parseFloat(saved.paidGbp)||340.60;
+  const missing=[];(saved.assignments||[]).forEach(obj=>Object.keys(obj).forEach(n=>{if(!people.includes(n))missing.push(n)}));
+  [...new Set(missing)].forEach(n=>people.push(n));
+  a={};(saved.assignments||[]).forEach((obj,i)=>{Object.keys(obj).forEach(n=>{const p=people.indexOf(n);if(p>=0){a[i]=a[i]||{};a[i][p]=+obj[n]}})});
+  save();renderCurrency();render();
+}
+function deleteSavedBill(id){
+  const saved=savedBills().find(x=>x.id===id);if(!saved)return;
+  if(!confirm("Delete saved bill \""+saved.name+"\"?"))return;
+  localStorage.setItem("bs2_saved_bills",JSON.stringify(savedBills().filter(x=>x.id!==id)));renderSavedBills();
+}
+function renderSavedBills(){
+  const box=document.getElementById("savedBills");if(!box)return;const list=savedBills();
+  box.innerHTML=list.length?list.map(x=>`<div style="border-top:1px solid #e5e7eb;padding:10px 0;display:flex;justify-content:space-between;gap:8px;align-items:center"><div style="min-width:0"><b>${esc(x.name)}</b><div class="muted">${esc(x.date||"")} · ${x.currency==="GBP"?"£":"€"}${(x.currency==="GBP"?x.paidGbp:((x.items||[]).reduce((s,it)=>s+(+it[2]||0),0))).toFixed(2)}</div></div><div style="display:flex;gap:6px"><button class="blue smallbtn" onclick="loadSavedBill(${x.id})">Load</button><button class="red smallbtn" onclick="deleteSavedBill(${x.id})">Delete</button></div></div>`).join(""):'<p class="muted">No saved bills yet.</p>';
+}
 function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function addPerson(){let x=document.getElementById("name"),n=x.value.trim();if(!n)return;if(people.includes(n)){alert("That name is already there.");return}people.push(n);x.value="";save();render()}
 document.getElementById("name").addEventListener("keydown",e=>{if(e.key==="Enter")addPerson()});
 function removePerson(p){people.splice(p,1);for(const k in a){delete a[k][p];let b={};Object.keys(a[k]).forEach(q=>{let n=+q;if(n>p)b[n-1]=a[k][q];else if(n<p)b[n]=a[k][q]});a[k]=b}save();render()}
 function qty(i,p){return +(a[i]?.[p]||0)}
 function setQty(i,p,v){a[i]=a[i]||{};let used=Object.keys(a[i]).filter(x=>+x!==p).reduce((s,x)=>s+qty(i,+x),0);a[i][p]=Math.max(0,Math.min(items[i][1]-used,v));if(!a[i][p])delete a[i][p];save();render()}
-function tap(i,p){setQty(i,p,qty(i,p)?0:1)}
-function equalItem(i){if(!people.length)return;let q=items[i][1],base=Math.floor(q/people.length),rem=q-base*people.length;a[i]={};people.forEach((_,p)=>a[i][p]=base+(p<rem?1:0));save();render()}
+function tap(i,p){setQty(i,p,qty(i,p)?0:Math.min(1,items[i][1]))}
+function equalItem(i, selected=people.map((_,p)=>p)){if(!selected.length)return;let q=items[i][1],share=q/selected.length;a[i]={};selected.forEach(p=>a[i][p]=share);save();render()}
+function toggleSharePanel(i){const el=document.getElementById("sharepanel"+i);if(el)el.style.display=el.style.display==="none"?"block":"none"}
+function splitSelected(i){const selected=[...document.querySelectorAll('#sharepanel'+i+' .sharepick.on')].map(b=>+b.dataset.p);if(!selected.length){alert("Select at least one person.");return}equalItem(i,selected)}
 function equalAll(){if(!people.length){alert("Add friends first.");return}items.forEach((_,i)=>equalItem(i))}
 function totals(){return people.map((_,p)=>displayValue(items.reduce((s,it,i)=>s+qty(i,p)*unit(i),0)))}
 function render(){
 document.getElementById("people").innerHTML=people.length?people.map((n,i)=>`<span class="pill">${esc(n)} <button onclick="removePerson(${i})">×</button></span>`).join(""):'<span class="muted">No friends added yet.</span>';
 document.getElementById("count").textContent=people.length;
-document.getElementById("items").innerHTML=items.map((it,i)=>{let assigned=people.reduce((s,_,p)=>s+qty(i,p),0),remain=it[1]-assigned;return `<div class="item"><div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[3]} · ${it[1]} × ${money(displayValue(unit(i)))}</div></div><div class="itemprice">${money(displayValue(it[2]))}</div></div><div class="assigns">${people.map((n,p)=>`<button class="personbtn ${qty(i,p)?'on':''}" onclick="tap(${i},${p})">${esc(n)}${qty(i,p)?` ×${qty(i,p)}`:''}</button>`).join("")}</div><div class="itemfoot"><span class="${remain?'warning':'ok'}">${remain?remain+" unassigned · "+money(displayValue(remain*unit(i))):"Fully assigned"}</span><button class="grey" onclick="equalItem(${i})">Split</button></div></div>`}).join("");
+document.getElementById("items").innerHTML=items.map((it,i)=>{let assigned=people.reduce((s,_,p)=>s+qty(i,p),0),remain=it[1]-assigned;return `<div class="item"><div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[3]} · ${it[1]} × ${money(displayValue(unit(i)))}</div></div><div class="itemprice">${money(displayValue(it[2]))}</div></div><div class="assigns">${people.map((n,p)=>`<button class="personbtn ${qty(i,p)?'on':''}" onclick="tap(${i},${p})">${esc(n)}${qty(i,p)?` ×${qty(i,p).toFixed(2).replace(/\.00$/,'')}`:''}</button>`).join("")}</div><div class="itemfoot"><span class="${Math.abs(remain)<0.001?'ok':'warning'}">${Math.abs(remain)<0.001?"Fully assigned":remain.toFixed(2)+" unassigned · "+money(displayValue(remain*unit(i)))}</span><button class="grey" onclick="toggleSharePanel(${i})">Split between</button></div><div id="sharepanel${i}" class="sharepanel" style="display:none"><div class="muted">Select who shares this item, then split it equally between them.</div><div class="assigns">${people.map((n,p)=>`<button data-p="${p}" class="personbtn sharepick" onclick="this.classList.toggle('on')">${esc(n)}</button>`).join("")}</div><div class="shareactions"><button class="blue" onclick="splitSelected(${i})">Split equally</button><button class="grey" onclick="equalItem(${i})">Everyone</button></div></div></div>`}).join("");
 let t=totals(),assigned=t.reduce((s,x)=>s+x,0);document.getElementById("assigned").textContent=money(assigned);document.getElementById("remaining").textContent=money(Math.max(0,displayValue(billTotal())-assigned));document.getElementById("displayTotal").textContent=money(displayValue(billTotal()));document.getElementById("headerSub").textContent=billTitle+" · "+money(displayValue(billTotal()));
 document.getElementById("results").innerHTML=people.length?people.map((n,p)=>`<div class="result"><span>${esc(n)}</span><span class="amount">${money(t[p])}</span></div>`).join(""):'<p class="muted">Add friends above.</p>';
 }
@@ -114,18 +154,18 @@ function renderEditor(){
 }
 function addDetected(){items.push(["New item",1,0,"New item"]);renderEditor()}
 function removeDetected(i){items.splice(i,1);renderEditor()}
-function applyDetected(){const next=[];for(let i=0;i<items.length;i++){const n=(document.getElementById("en"+i)?.value||"").trim()||"Item";const q=Math.max(1,parseInt(document.getElementById("eq"+i)?.value||"1",10));const p=Math.max(0,parseFloat(document.getElementById("ep"+i)?.value||"0"));next.push([n,q,p,n])}items=next;a={};people=[];save();render();document.getElementById("ocrStatus").textContent="New bill loaded. Add the people who are paying and assign the items.";document.getElementById("detectedEditor").style.display="none"}
-function resetBill(){if(!confirm("Replace the current bill with the original example bill?"))return;items=defaultItems.map(x=>[...x]);billTitle="Sexy Meat Albufeira · 25 Sep 2026";a={};people=[];save();render();document.getElementById("billFile").value="";document.getElementById("billPreview").style.display="none";document.getElementById("detectedEditor").style.display="none";document.getElementById("ocrStatus").textContent="Original example bill restored."}
+function applyDetected(){const next=[];for(let i=0;i<items.length;i++){const n=(document.getElementById("en"+i)?.value||"").trim()||"Item";const q=Math.max(1,parseInt(document.getElementById("eq"+i)?.value||"1",10));const p=Math.max(0,parseFloat(document.getElementById("ep"+i)?.value||"0"));next.push([n,q,p,n])}items=next;a={};save();render();document.getElementById("ocrStatus").textContent="New bill loaded. Add the people who are paying and assign the items.";document.getElementById("detectedEditor").style.display="none"}
+function resetBill(){if(!confirm("Replace the current bill with the original example bill?"))return;items=defaultItems.map(x=>[...x]);billTitle="Sexy Meat Albufeira · 25 Sep 2026";a={};save();render();document.getElementById("billFile").value="";document.getElementById("billPreview").style.display="none";document.getElementById("detectedEditor").style.display="none";document.getElementById("ocrStatus").textContent="Original example bill restored."}
 function guessQty(name){let m=name.match(/(?:^|\s)x\s*(\d+)\s*$/i);if(m)return{name:name.slice(0,m.index).trim(),qty:+m[1]};m=name.match(/^(\d+)\s*[x×]\s*(.+)$/i);if(m)return{name:m[2].trim(),qty:+m[1]};return{name:name.trim(),qty:1}}
 function parseReceiptText(text){const lines=text.split(/\r?\n/).map(x=>x.replace(/\s+/g," ").trim()).filter(Boolean);const found=[];const skip=/^(total|subtotal|iva|vat|tax|troco|change|multibanco|visa|mastercard|dinheiro|cash|cliente|mesa|data|hora|fatura|factura|nif|morada|telefone|www\.)/i;for(const line of lines){if(skip.test(line))continue;const m=line.match(/(?:€|EUR)?\s*([0-9]{1,4}(?:[.,][0-9]{2}))\s*$/i);if(!m)continue;const price=parseFloat(m[1].replace(',','.'));if(!isFinite(price)||price<=0)continue;let name=line.slice(0,m.index).replace(/[|:;]+$/,'').trim();if(!name||name.length<2)continue;let qty=1;let qm=name.match(/(?:^|\s)(\d+)\s*$/);if(qm&&+qm[1]>0&&+qm[1]<100){qty=+qm[1];name=name.slice(0,qm.index).trim()}else{const q=guessQty(name);name=q.name;qty=q.qty}name=name.replace(/\s+[0-9]+[.,][0-9]{2}\s*$/,'').trim();if(!name||/^[0-9.,€$£\s]+$/.test(name))continue;found.push([name,qty,price,name])}const seen=new Set();return found.filter(it=>{const k=it[0].toLowerCase()+"|"+it[1]+"|"+it[2].toFixed(2);if(seen.has(k))return false;seen.add(k);return true}).slice(0,80)}
-async function handleBillUpload(e){const file=e.target.files?.[0];if(!file)return;const preview=document.getElementById("billPreview");preview.src=URL.createObjectURL(file);preview.style.display="block";const status=document.getElementById("ocrStatus"),prog=document.getElementById("ocrProgress"),bar=document.getElementById("ocrBar");status.textContent="Reading your bill…";prog.style.display="block";bar.style.width="5%";try{if(!window.Tesseract)await loadTesseract();const result=await Tesseract.recognize(file,"eng+por",{logger:m=>{if(m.progress)bar.style.width=Math.round(m.progress*100)+"%"}});const detected=parseReceiptText(result.data.text);if(!detected.length)throw new Error("No item lines found");items=detected;a={};people=[];billTitle="New bill";save();renderEditor();status.textContent=`Detected ${detected.length} item${detected.length===1?"":"s"}. Check them below before applying the bill.`;bar.style.width="100%"}catch(err){console.error(err);status.textContent="I couldn't reliably read the bill. Try a clearer photo, or add the items manually below.";renderEditor()}}
+async function handleBillUpload(e){const file=e.target.files?.[0];if(!file)return;const preview=document.getElementById("billPreview");preview.src=URL.createObjectURL(file);preview.style.display="block";const status=document.getElementById("ocrStatus"),prog=document.getElementById("ocrProgress"),bar=document.getElementById("ocrBar");status.textContent="Reading your bill…";prog.style.display="block";bar.style.width="5%";try{if(!window.Tesseract)await loadTesseract();const result=await Tesseract.recognize(file,"eng+por",{logger:m=>{if(m.progress)bar.style.width=Math.round(m.progress*100)+"%"}});const detected=parseReceiptText(result.data.text);if(!detected.length)throw new Error("No item lines found");items=detected;a={};billTitle="New bill";save();renderEditor();status.textContent=`Detected ${detected.length} item${detected.length===1?"":"s"}. Check them below before applying the bill.`;bar.style.width="100%"}catch(err){console.error(err);status.textContent="I couldn't reliably read the bill. Try a clearer photo, or add the items manually below.";renderEditor()}}
 function loadTesseract(){return new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";s.onload=resolve;s.onerror=()=>reject(new Error("OCR library failed to load"));document.head.appendChild(s)})}
 async function shareTotals(){let t=totals(),s="Bill Splitter — "+money(displayValue(billTotal()))+"\n"+(currency==="GBP"?"Scaled from €"+billTotal().toFixed(2)+" using actual payment of £"+paidGbp.toFixed(2)+"\n\n":"\n")+people.map((n,i)=>n+": "+money(t[i])).join("\n");if(navigator.share){try{await navigator.share({title:"Bill Splitter",text:s})}catch(e){}}else{await navigator.clipboard.writeText(s);alert("Totals copied.")}}
 function setCurrency(c){currency=c;save();renderCurrency();render()}
 function updatePaidGbp(){let v=parseFloat(document.getElementById("paidGbp").value);if(isFinite(v)&&v>0)paidGbp=v;save();render()}
 function renderCurrency(){document.getElementById("gbpBox").style.display=currency==="GBP"?"block":"none";document.getElementById("eurBtn").className=currency==="EUR"?"blue":"grey";document.getElementById("gbpBtn").className=currency==="GBP"?"blue":"grey";document.getElementById("paidGbp").value=paidGbp.toFixed(2)}
 function clearAll(){if(confirm("Clear everyone and all assignments?")){people=[];a={};save();render()}}
-renderCurrency();render();
+renderCurrency();renderSavedBills();render();
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 </script>
 </body>
