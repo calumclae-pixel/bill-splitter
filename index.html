@@ -42,7 +42,7 @@ dialog{border:0;border-radius:18px;width:min(92%,520px);padding:0;box-shadow:0 2
 <div class="stat"><small>Remaining</small><b id="remaining">€366.25</b></div>
 <div class="stat"><small>People</small><b id="count">0</b></div>
 </div>
-<p class="muted">Tap a person's name under an item to give them one unit. Tap again to remove it. This works especially well for drinks and individual steaks.</p>
+<p class="muted">Receipt items are shown in English, with the original Portuguese wording underneath for reference. Tap a person's name to assign an item.</p>
 </section>
 
 <section class="card">
@@ -63,13 +63,13 @@ dialog{border:0;border-radius:18px;width:min(92%,520px);padding:0;box-shadow:0 2
 <script>
 const TOTAL=366.25;
 const items=[
-["Pão",2,3.90],["Azeitonas",1,1.50],["Manteiga Alho",1,1.50],["Azeitona Extra",1,1.50],
-["Sexy Drink",3,24],["Pinacolada",1,7.50],["Mojito",1,7],["Porn Star Marti",1,7.50],
-["Bebidas",1,2],["Agua 0,50",1,1.90],["Copo Herdade Do",1,19.50],["Asas de Frango",1,9],
-["Chulleton",4,114],["Esparregado",1,3],["Molho Chimichur",4,10],["Molho Piquillo",1,2.50],
-["Queijo Amanteig",1,4.95],["Bife de Atum",1,15],["Carpaccio B. A",2,19.50],["Molho de Cogume",3,7.50],
-["Wagyu Aus Vaz",1,29.50],["Legumes Saltead",2,8],["Queijo Provolon",1,8],["Wagyu Aus. Pic",1,22.50],
-["Batata Doce Fri",1,4],["T-Bone",1,31]
+["Bread",2,3.90,"Pão"],["Olives",1,1.50,"Azeitonas"],["Garlic Butter",1,1.50,"Manteiga Alho"],["Extra Olives",1,1.50,"Azeitona Extra"],
+["Sexy Drink",3,24,"Sexy Drink"],["Piña Colada",1,7.50,"Pinacolada"],["Mojito",1,7,"Mojito"],["Porn Star Martini",1,7.50,"Porn Star Marti"],
+["Drinks",1,2,"Bebidas"],["Water 0.5 L",1,1.90,"Agua 0,50"],["Herdade do — Glass",1,19.50,"Copo Herdade Do"],["Chicken Wings",1,9,"Asas de Frango"],
+["Bone-in Steak",4,114,"Chulleton"],["Creamed Spinach",1,3,"Esparregado"],["Chimichurri Sauce",4,10,"Molho Chimichur"],["Piquillo Pepper Sauce",1,2.50,"Molho Piquillo"],
+["Buttery Cheese",1,4.95,"Queijo Amanteig"],["Tuna Steak",1,15,"Bife de Atum"],["Beef Carpaccio",2,19.50,"Carpaccio B. A"],["Mushroom Sauce",3,7.50,"Molho de Cogume"],
+["Australian Wagyu",1,29.50,"Wagyu Aus Vaz"],["Sautéed Vegetables",2,8,"Legumes Saltead"],["Provolone Cheese",1,8,"Queijo Provolon"],["Australian Wagyu Picanha",1,22.50,"Wagyu Aus. Pic"],
+["Sweet Potato Fries",1,4,"Batata Doce Fri"],["T-Bone Steak",1,31,"T-Bone"]
 ];
 let people=JSON.parse(localStorage.getItem("bs2_people")||"[]");
 let a=JSON.parse(localStorage.getItem("bs2_assign")||"{}");
@@ -88,7 +88,7 @@ function render(){
 document.getElementById("people").innerHTML=people.length?people.map((n,i)=>`<span class="pill">${esc(n)} <button onclick="removePerson(${i})">×</button></span>`).join(""):'<span class="muted">No friends added yet.</span>';
 document.getElementById("count").textContent=people.length;
 document.getElementById("items").innerHTML=items.map((it,i)=>{let assigned=people.reduce((s,_,p)=>s+qty(i,p),0),remain=it[1]-assigned;return `<div class="item">
-<div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[1]} × ${money(unit(i))}</div></div><div class="itemprice">${money(it[2])}</div></div>
+<div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[3]} · ${it[1]} × ${money(unit(i))}</div></div><div class="itemprice">${money(it[2])}</div></div>
 <div class="assigns">${people.map((n,p)=>`<button class="personbtn ${qty(i,p)?'on':''}" onclick="tap(${i},${p})">${esc(n)}${qty(i,p)?` <span class="qty"><strong>${qty(i,p)}</strong></span>`:''}</button>`).join("")}</div>
 <div class="itemfoot"><span class="${remain?'warning':'ok'}">${remain?remain+" unassigned · "+money(remain*unit(i)):"Fully assigned"}</span><button class="grey" onclick="equalItem(${i})">Split</button></div>
 </div>`}).join("");
