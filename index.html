@@ -10,18 +10,16 @@
 *{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#151a24;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 header{background:#111827;color:white;padding:22px 18px 18px;position:sticky;top:0;z-index:10}h1{margin:0;font-size:25px}header p{margin:4px 0 0;color:#cbd5e1;font-size:13px}
 main{max-width:760px;margin:auto;padding:14px 14px 100px}.card{background:white;border:1px solid #e5e7eb;border-radius:17px;padding:15px;margin-bottom:12px;box-shadow:0 2px 10px #00000008}
-h2{font-size:17px;margin:0 0 12px}.muted{color:#697386;font-size:12px;line-height:1.4}
-.row{display:flex;gap:8px}.row input{min-width:0;flex:1}input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px}
-button{font:inherit;font-weight:650;border:0;border-radius:11px;padding:10px 13px}.blue{background:#2563eb;color:white}.grey{background:#eef1f5;color:#202938}.red{background:#fee2e2;color:#991b1b}
+h2{font-size:17px;margin:0 0 12px}.muted{color:#697386;font-size:12px;line-height:1.4}.row{display:flex;gap:8px}.row input{min-width:0;flex:1}
+input{font:inherit;border:1px solid #d7dce5;border-radius:11px;padding:11px 12px}button{font:inherit;font-weight:650;border:0;border-radius:11px;padding:10px 13px}
+.blue{background:#2563eb;color:white}.grey{background:#eef1f5;color:#202938}.red{background:#fee2e2;color:#991b1b}
 .people{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.pill{background:#eef2ff;border-radius:999px;padding:7px 10px;font-size:13px}.pill button{padding:0 5px;margin-left:4px;background:none;color:#64748b}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.stat{background:#f8fafc;border-radius:12px;padding:11px}.stat small{display:block;color:#6b7280}.stat b{font-size:20px}
 .item{padding:13px 0;border-top:1px solid #e8ebf0}.item:first-child{border-top:0}.itemtop{display:flex;justify-content:space-between;gap:10px}.itemname{font-weight:700}.itemsub{font-size:12px;color:#697386;margin-top:2px}.itemprice{font-weight:750;white-space:nowrap}
 .assigns{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.personbtn{border:1px solid #d9dee7;background:white;padding:8px 10px}.personbtn.on{background:#dbeafe;border-color:#60a5fa;color:#1d4ed8}
-.qty{display:inline-flex;align-items:center;gap:5px;margin-left:5px}.qty button{padding:3px 7px;background:#fff;border:1px solid #cbd5e1;border-radius:7px}.qty strong{min-width:16px;text-align:center}
 .itemfoot{display:flex;justify-content:space-between;align-items:center;margin-top:9px}.warning{color:#b91c1c;font-size:12px}.ok{color:#15803d;font-size:12px}
 .result{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding:12px 0}.result:first-child{border-top:0}.amount{font-weight:800;font-size:18px}
 .bottom{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #ddd;padding:9px 14px calc(9px + env(safe-area-inset-bottom));display:flex;gap:8px;z-index:20}.bottom button{flex:1}
-dialog{border:0;border-radius:18px;width:min(92%,520px);padding:0;box-shadow:0 20px 60px #0005}dialog::backdrop{background:#0008}.modal{padding:18px}.modal h3{margin:0 0 10px}.modal .actions{display:flex;gap:8px;margin-top:14px}.modal .actions button{flex:1}
 @media(min-width:650px){.stats{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
@@ -33,39 +31,27 @@ dialog{border:0;border-radius:18px;width:min(92%,520px);padding:0;box-shadow:0 2
 <div class="row"><input id="name" placeholder="Friend's name" autocomplete="off"><button class="blue" onclick="addPerson()">Add</button></div>
 <div id="people" class="people"></div>
 </section>
-
 <section class="card">
 <h2>Bill</h2>
 <div class="stats">
-<div class="stat"><small>Total</small><b>€366.25</b></div>
-<div class="stat"><small>Assigned</small><b id="assigned">€0.00</b></div>
-<div class="stat"><small>Remaining</small><b id="remaining">€366.25</b></div>
-<div class="stat"><small>People</small><b id="count">0</b></div>
+<div class="stat"><small>Total</small><b>€366.25</b></div><div class="stat"><small>Assigned</small><b id="assigned">€0.00</b></div>
+<div class="stat"><small>Remaining</small><b id="remaining">€366.25</b></div><div class="stat"><small>People</small><b id="count">0</b></div>
 </div>
-<p class="muted">Receipt items are shown in English, with the original Portuguese wording underneath for reference. Tap a person's name to assign an item.</p>
+<p class="muted">Items are shown in English. The original Portuguese receipt wording is shown underneath for reference.</p>
 </section>
-
 <section class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Items</h2><button class="grey" onclick="equalAll()">Split all equally</button></div>
 <div id="items"></div>
 </section>
-
-<section class="card">
-<h2>Everyone owes</h2>
-<div id="results"><p class="muted">Add friends above.</p></div>
-</section>
+<section class="card"><h2>Everyone owes</h2><div id="results"><p class="muted">Add friends above.</p></div></section>
 </main>
-
-<div class="bottom"><button class="grey" onclick="clearAll()">Clear</button><button class="blue" onclick="shareResults()">Share totals</button></div>
-
-<dialog id="share"><div class="modal"><h3>Bill totals</h3><div id="shareText"></div><div class="actions"><button class="grey" onclick="share.close()">Close</button><button class="blue" onclick="copyTotals()">Copy</button></div></div></dialog>
-
+<div class="bottom"><button class="grey" onclick="clearAll()">Clear</button><button class="blue" onclick="shareTotals()">Share totals</button></div>
 <script>
 const TOTAL=366.25;
 const items=[
 ["Bread",2,3.90,"Pão"],["Olives",1,1.50,"Azeitonas"],["Garlic Butter",1,1.50,"Manteiga Alho"],["Extra Olives",1,1.50,"Azeitona Extra"],
 ["Sexy Drink",3,24,"Sexy Drink"],["Piña Colada",1,7.50,"Pinacolada"],["Mojito",1,7,"Mojito"],["Porn Star Martini",1,7.50,"Porn Star Marti"],
-["Drinks",1,2,"Bebidas"],["Water 0.5 L",1,1.90,"Agua 0,50"],["Herdade do — Glass",1,19.50,"Copo Herdade Do"],["Chicken Wings",1,9,"Asas de Frango"],
+["Drinks",1,2,"Bebidas"],["Water 0.5 L",1,1.90,"Agua 0,50"],["Herdade do Glass",1,19.50,"Copo Herdade Do"],["Chicken Wings",1,9,"Asas de Frango"],
 ["Bone-in Steak",4,114,"Chulleton"],["Creamed Spinach",1,3,"Esparregado"],["Chimichurri Sauce",4,10,"Molho Chimichur"],["Piquillo Pepper Sauce",1,2.50,"Molho Piquillo"],
 ["Buttery Cheese",1,4.95,"Queijo Amanteig"],["Tuna Steak",1,15,"Bife de Atum"],["Beef Carpaccio",2,19.50,"Carpaccio B. A"],["Mushroom Sauce",3,7.50,"Molho de Cogume"],
 ["Australian Wagyu",1,29.50,"Wagyu Aus Vaz"],["Sautéed Vegetables",2,8,"Legumes Saltead"],["Provolone Cheese",1,8,"Queijo Provolon"],["Australian Wagyu Picanha",1,22.50,"Wagyu Aus. Pic"],
@@ -75,9 +61,10 @@ let people=JSON.parse(localStorage.getItem("bs2_people")||"[]");
 let a=JSON.parse(localStorage.getItem("bs2_assign")||"{}");
 const money=n=>"€"+n.toFixed(2), unit=i=>items[i][2]/items[i][1];
 function save(){localStorage.setItem("bs2_people",JSON.stringify(people));localStorage.setItem("bs2_assign",JSON.stringify(a))}
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function addPerson(){let x=document.getElementById("name"),n=x.value.trim();if(!n)return;if(people.includes(n)){alert("That name is already there.");return}people.push(n);x.value="";save();render()}
 document.getElementById("name").addEventListener("keydown",e=>{if(e.key==="Enter")addPerson()});
-function removePerson(p){people.splice(p,1);for(const k in a){delete a[k][p];const b={};Object.keys(a[k]).forEach(q=>{let n=+q;if(n>p)b[n-1]=a[k][q];else if(n<p)b[n]=a[k][q]});a[k]=b}save();render()}
+function removePerson(p){people.splice(p,1);for(const k in a){delete a[k][p];let b={};Object.keys(a[k]).forEach(q=>{let n=+q;if(n>p)b[n-1]=a[k][q];else if(n<p)b[n]=a[k][q]});a[k]=b}save();render()}
 function qty(i,p){return +(a[i]?.[p]||0)}
 function setQty(i,p,v){a[i]=a[i]||{};let used=Object.keys(a[i]).filter(x=>+x!==p).reduce((s,x)=>s+qty(i,+x),0);a[i][p]=Math.max(0,Math.min(items[i][1]-used,v));if(!a[i][p])delete a[i][p];save();render()}
 function tap(i,p){setQty(i,p,qty(i,p)?0:1)}
@@ -87,21 +74,13 @@ function totals(){return people.map((_,p)=>items.reduce((s,it,i)=>s+qty(i,p)*uni
 function render(){
 document.getElementById("people").innerHTML=people.length?people.map((n,i)=>`<span class="pill">${esc(n)} <button onclick="removePerson(${i})">×</button></span>`).join(""):'<span class="muted">No friends added yet.</span>';
 document.getElementById("count").textContent=people.length;
-document.getElementById("items").innerHTML=items.map((it,i)=>{let assigned=people.reduce((s,_,p)=>s+qty(i,p),0),remain=it[1]-assigned;return `<div class="item">
-<div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[3]} · ${it[1]} × ${money(unit(i))}</div></div><div class="itemprice">${money(it[2])}</div></div>
-<div class="assigns">${people.map((n,p)=>`<button class="personbtn ${qty(i,p)?'on':''}" onclick="tap(${i},${p})">${esc(n)}${qty(i,p)?` <span class="qty"><strong>${qty(i,p)}</strong></span>`:''}</button>`).join("")}</div>
-<div class="itemfoot"><span class="${remain?'warning':'ok'}">${remain?remain+" unassigned · "+money(remain*unit(i)):"Fully assigned"}</span><button class="grey" onclick="equalItem(${i})">Split</button></div>
-</div>`}).join("");
+document.getElementById("items").innerHTML=items.map((it,i)=>{let assigned=people.reduce((s,_,p)=>s+qty(i,p),0),remain=it[1]-assigned;return `<div class="item"><div class="itemtop"><div><div class="itemname">${it[0]}</div><div class="itemsub">${it[3]} · ${it[1]} × ${money(unit(i))}</div></div><div class="itemprice">${money(it[2])}</div></div><div class="assigns">${people.map((n,p)=>`<button class="personbtn ${qty(i,p)?'on':''}" onclick="tap(${i},${p})">${esc(n)}${qty(i,p)?` ×${qty(i,p)}`:''}</button>`).join("")}</div><div class="itemfoot"><span class="${remain?'warning':'ok'}">${remain?remain+" unassigned · "+money(remain*unit(i)):"Fully assigned"}</span><button class="grey" onclick="equalItem(${i})">Split</button></div></div>`}).join("");
 let t=totals(),assigned=t.reduce((s,x)=>s+x,0);document.getElementById("assigned").textContent=money(assigned);document.getElementById("remaining").textContent=money(Math.max(0,TOTAL-assigned));
 document.getElementById("results").innerHTML=people.length?people.map((n,p)=>`<div class="result"><span>${esc(n)}</span><span class="amount">${money(t[p])}</span></div>`).join(""):'<p class="muted">Add friends above.</p>';
 }
+async function shareTotals(){let t=totals(),s="Bill Splitter — €366.25\n\n"+people.map((n,i)=>n+": "+money(t[i])).join("\n");if(navigator.share){try{await navigator.share({title:"Bill Splitter",text:s})}catch(e){}}else{await navigator.clipboard.writeText(s);alert("Totals copied.")}}
 function clearAll(){if(confirm("Clear everyone and all assignments?")){people=[];a={};save();render()}}
-function totalsText(){let t=totals();return "Bill Splitter — €366.25\\n\\n"+people.map((n,i)=>n+": "+money(t[i])).join("\\n")}
-function shareResults(){document.getElementById("shareText").innerHTML=people.length?people.map((n,i)=>`<div class="result"><span>${esc(n)}</span><b>${money(totals()[i])}</b></div>`).join(""):"<p class='muted'>Add friends first.</p>";share.showModal()}
-async function copyTotals(){await navigator.clipboard.writeText(totalsText());alert("Copied!")}
-function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 render();
-if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
 </script>
 </body>
 </html>
