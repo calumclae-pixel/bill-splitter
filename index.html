@@ -157,57 +157,79 @@ function removeDetected(i){items.splice(i,1);renderEditor()}
 function applyDetected(){const next=[];for(let i=0;i<items.length;i++){const n=(document.getElementById("en"+i)?.value||"").trim()||"Item";const q=Math.max(1,parseInt(document.getElementById("eq"+i)?.value||"1",10));const p=Math.max(0,parseFloat(document.getElementById("ep"+i)?.value||"0"));next.push([n,q,p,n])}items=next;a={};save();render();document.getElementById("ocrStatus").textContent="New bill loaded. Add the people who are paying and assign the items.";document.getElementById("detectedEditor").style.display="none"}
 function resetBill(){if(!confirm("Replace the current bill with the original example bill?"))return;items=defaultItems.map(x=>[...x]);billTitle="Sexy Meat Albufeira · 25 Sep 2026";a={};save();render();document.getElementById("billFile").value="";document.getElementById("billPreview").style.display="none";document.getElementById("detectedEditor").style.display="none";document.getElementById("ocrStatus").textContent="Original example bill restored."}
 function guessQty(name){let m=name.match(/(?:^|\s)x\s*(\d+)\s*$/i);if(m)return{name:name.slice(0,m.index).trim(),qty:+m[1]};m=name.match(/^(\d+)\s*[x×]\s*(.+)$/i);if(m)return{name:m[2].trim(),qty:+m[1]};return{name:name.trim(),qty:1}}
-function parseReceiptText(text){
-  const lines=text.split(/\r?\n/).map(x=>x.replace(/[|]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
-  const found=[];
-  const skip=/^(total|subtotal|iva|vat|tax|troco|change|multibanco|visa|mastercard|dinheiro|cash|cliente|consumidor|mesa|data|hora|fatura|factura|nif|morada|telefone|www\.|pre[cç]o\s*:)/i;
-  const moneyAtEnd=/([0-9]{1,4}(?:[.,][0-9]{2}))\s*$/;
+function normalizeOcrText(text){
+  return text
+    .replace(/\u00a0/g,' ')
+    .replace(/[|]/g,' ')
+    .replace(/[“”]/g,'"')
+    .replace(/\s+/g,' ')
+    .trim();
+}
 
-  for(const line of lines){
+function parseReceiptText(text){
+  const raw=text.split(/\r?\n/).map(normalizeOcrText).filter(Boolean);
+  const lines=raw.map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const found=[];
+  const skip=/^(total|subtotal|iva|vat|tax|troco|change|multibanco|visa|mastercard|dinheiro|cash|cliente|consumidor|mesa|data|hora|fatura|factura|nif|morada|telefone|www\.|pre[cçc][oa]\s*:)/i;
+  const money=/([0-9]{1,4}(?:[.,][0-9]{2}))\s*$/;
+
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
     if(skip.test(line)) continue;
 
-    // Portuguese restaurant receipts commonly put the quantity + description + VAT + line total
-    // on one line, then put "Preco: x,xx/Uni" on the following line. Parse the first line only.
-    let m=line.match(/^(\d+)\s+(?:Uni\s+)?(.+?)\s+(?:13|23)%\s+([0-9]{1,4}(?:[.,][0-9]{2}))\s*$/i);
+    // Main Portuguese receipt format:
+    // 5 Uni Daiquiri 23% 47,50
+    // Preço: 9,50/Uni
+    let m=line.match(/^(\d{1,3})\s+(?:Uni\s+)?(.+?)\s+(?:\d{2}\s*%\s*)?([0-9]{1,4}[.,][0-9]{2})\s*$/i);
     if(m){
       const qty=Math.max(1,parseInt(m[1],10));
-      const name=m[2].trim();
+      let name=m[2].replace(/\s+(?:13|23)\s*%\s*$/i,'').trim();
       const price=parseFloat(m[3].replace(',','.'));
-      if(name && price>0 && !/^pre[cç]o/i.test(name)) found.push([name,qty,price,name]);
-      continue;
+      if(name && price>0 && !skip.test(name) && name.length>1){
+        found.push([name,qty,price,name]);
+        continue;
+      }
     }
 
-    // Same layout if OCR misses the VAT percentage.
-    m=line.match(/^(\d+)\s+(?:Uni\s+)?(.+?)\s+([0-9]{1,4}(?:[.,][0-9]{2}))\s*$/i);
-    if(m && /\bUni\b/i.test(line)){
+    // OCR can sometimes insert/remove the VAT percentage or distort "Uni".
+    m=line.match(/^(\d{1,3})\s+(.+?)\s+([0-9]{1,4}[.,][0-9]{2})\s*$/i);
+    if(m){
       const qty=Math.max(1,parseInt(m[1],10));
-      const name=m[2].trim();
+      let name=m[2].trim();
       const price=parseFloat(m[3].replace(',','.'));
-      if(name && price>0 && !/^pre[cç]o/i.test(name) && !/^(total|subtotal|iva|vat|tax)$/i.test(name)) found.push([name,qty,price,name]);
+      name=name.replace(/\s+(?:13|23)\s*%\s*$/i,'').trim();
+      if(name && price>0 && !skip.test(name) && !/^(?:pre[cçc][oa]|total|subtotal|iva|vat|tax)$/i.test(name) && name.length>1){
+        found.push([name,qty,price,name]);
+        continue;
+      }
+    }
+
+    // Generic fallback: a line beginning with a quantity and ending in a price.
+    m=line.match(/^(\d{1,3})\s+(.+?)\s+([0-9]{1,4}[.,][0-9]{2})\s*$/);
+    if(m){
+      const qty=Math.max(1,parseInt(m[1],10));
+      let name=m[2].trim();
+      const price=parseFloat(m[3].replace(',','.'));
+      name=name.replace(/\s+(?:13|23)\s*%\s*$/i,'').trim();
+      if(name && price>0 && !skip.test(name) && !/^[0-9.,€$£\s]+$/.test(name)) found.push([name,qty,price,name]);
       continue;
     }
-
-    // Fallback for receipts where the quantity is attached to the description or appears after it.
-    m=line.match(moneyAtEnd);
-    if(!m) continue;
-    const price=parseFloat(m[1].replace(',','.'));
-    if(!isFinite(price)||price<=0) continue;
-    let name=line.slice(0,m.index).replace(/[|:;]+$/,'').trim();
-    if(!name || name.length<2 || /^pre[cç]o/i.test(name)) continue;
-
-    let qty=1;
-    let qm=name.match(/^(\d+)\s+(?:Uni\s+)?(.+)$/i);
-    if(qm){qty=Math.max(1,parseInt(qm[1],10));name=qm[2].trim();}
-    else {
-      qm=name.match(/(?:^|\s)(\d+)\s*$/);
-      if(qm && +qm[1]>0 && +qm[1]<100){qty=+qm[1];name=name.slice(0,qm.index).trim();}
-      else {const q=guessQty(name);name=q.name;qty=q.qty;}
-    }
-    if(!name||/^[0-9.,€$£\s]+$/.test(name)) continue;
-    if(/^(total|subtotal|iva|vat|tax|troco|change)/i.test(name)) continue;
-    found.push([name,qty,price,name]);
   }
 
+  // Last-resort fallback for layouts where OCR loses the leading quantity.
+  for(const line of lines){
+    if(skip.test(line)) continue;
+    const m=line.match(/^(.+?)\s+(?:13|23)\s*%\s*([0-9]{1,4}[.,][0-9]{2})\s*$/i);
+    if(!m) continue;
+    let name=m[1].trim();
+    let qty=1;
+    const qm=name.match(/^(\d{1,3})\s+(?:Uni\s+)?(.+)$/i);
+    if(qm){qty=Math.max(1,parseInt(qm[1],10));name=qm[2].trim();}
+    const price=parseFloat(m[2].replace(',','.'));
+    if(name.length>1 && price>0 && !skip.test(name)) found.push([name,qty,price,name]);
+  }
+
+  // De-duplicate OCR passes/overlapping fallbacks.
   const seen=new Set();
   return found.filter(it=>{
     const k=it[0].toLowerCase().replace(/\s+/g,' ')+'|'+it[1]+'|'+it[2].toFixed(2);
@@ -215,7 +237,76 @@ function parseReceiptText(text){
     seen.add(k); return true;
   }).slice(0,80);
 }
-async function handleBillUpload(e){const file=e.target.files?.[0];if(!file)return;const preview=document.getElementById("billPreview");preview.src=URL.createObjectURL(file);preview.style.display="block";const status=document.getElementById("ocrStatus"),prog=document.getElementById("ocrProgress"),bar=document.getElementById("ocrBar");status.textContent="Reading your bill…";prog.style.display="block";bar.style.width="5%";try{if(!window.Tesseract)await loadTesseract();const result=await Tesseract.recognize(file,"eng+por",{logger:m=>{if(m.progress)bar.style.width=Math.round(m.progress*100)+"%"}});const detected=parseReceiptText(result.data.text);if(!detected.length)throw new Error("No item lines found");items=detected;a={};billTitle="New bill";save();renderEditor();status.textContent=`Detected ${detected.length} item${detected.length===1?"":"s"}. Check them below before applying the bill.`;bar.style.width="100%"}catch(err){console.error(err);status.textContent="I couldn't reliably read the bill. Try a clearer photo, or add the items manually below.";renderEditor()}}
+
+function preprocessBillImage(file, mode=0){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=2.2;
+      const c=document.createElement('canvas');
+      c.width=Math.round(img.naturalWidth*scale); c.height=Math.round(img.naturalHeight*scale);
+      const ctx=c.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0,c.width,c.height);
+      if(mode===0){resolve(c.toDataURL('image/jpeg',0.95));return;}
+      const d=ctx.getImageData(0,0,c.width,c.height), p=d.data;
+      for(let i=0;i<p.length;i+=4){
+        let g=0.299*p[i]+0.587*p[i+1]+0.114*p[i+2];
+        if(mode===1){g=(g-128)*1.55+128;} // contrast
+        else {g=(g-128)*1.8+128; g=g>158?255:0;} // high-contrast threshold
+        g=Math.max(0,Math.min(255,g)); p[i]=p[i+1]=p[i+2]=g;
+      }
+      ctx.putImageData(d,0,0); resolve(c.toDataURL('image/png'));
+    };
+    img.onerror=reject; img.src=URL.createObjectURL(file);
+  });
+}
+
+async function runOcrPass(image, lang='eng+por', psm='6'){
+  const r=await Tesseract.recognize(image,lang,{logger:m=>{
+    if(m.status==='recognizing text' && m.progress){
+      const bar=document.getElementById('ocrBar'); if(bar) bar.style.width=Math.max(5,Math.round(m.progress*100))+'%';
+    }
+  }, tessedit_pageseg_mode:psm});
+  return r.data.text||'';
+}
+
+async function handleBillUpload(e){
+  const file=e.target.files?.[0]; if(!file)return;
+  const preview=document.getElementById('billPreview');
+  preview.src=URL.createObjectURL(file); preview.style.display='block';
+  const status=document.getElementById('ocrStatus'),prog=document.getElementById('ocrProgress'),bar=document.getElementById('ocrBar');
+  status.textContent='Preparing and reading your bill…'; prog.style.display='block'; bar.style.width='5%';
+  try{
+    if(!window.Tesseract) await loadTesseract();
+    // Run OCR on the original/upscaled image and a high-contrast version.
+    // We choose the pass that produces the most plausible item lines.
+    const images=await Promise.all([preprocessBillImage(file,0),preprocessBillImage(file,1),preprocessBillImage(file,2)]);
+    let best=[]; let bestText='';
+    for(let i=0;i<images.length;i++){
+      status.textContent=`Reading your bill… (${i+1}/3)`;
+      const text=await runOcrPass(images[i],'eng+por','6');
+      const detected=parseReceiptText(text);
+      if(detected.length>best.length){best=detected;bestText=text;}
+    }
+    if(!best.length) throw new Error('No item lines found');
+
+    // Validate against a printed receipt total when OCR found one.
+    const totalMatch=bestText.match(/(?:TOTAL\s*:?\s*(?:Eur|€)?\s*)([0-9]{1,4}[.,][0-9]{2})/i);
+    const detectedSum=best.reduce((s,it)=>s+Number(it[2]||0),0);
+    let validation='';
+    if(totalMatch){
+      const receiptTotal=parseFloat(totalMatch[1].replace(',','.'));
+      if(Math.abs(detectedSum-receiptTotal)<0.02) validation=` Total €${receiptTotal.toFixed(2)} matches the receipt.`;
+      else validation=` Detected item total: €${detectedSum.toFixed(2)}; please check the items against the receipt.`;
+    }
+    items=best; a={}; billTitle='New bill'; save(); renderEditor();
+    status.textContent=`Detected ${best.length} item${best.length===1?'':'s'}. Check them below before applying the bill.${validation}`;
+    bar.style.width='100%';
+  }catch(err){
+    console.error(err); items=[]; a={}; billTitle='New bill'; renderEditor();
+    status.textContent="I couldn't reliably read the bill. Try a clearer photo, or add the items manually below. Your previous bill has not been replaced."; bar.style.width='0%';
+  }
+}
 function loadTesseract(){return new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";s.onload=resolve;s.onerror=()=>reject(new Error("OCR library failed to load"));document.head.appendChild(s)})}
 async function shareTotals(){let t=totals(),s="Bill Splitter — "+money(displayValue(billTotal()))+"\n"+(currency==="GBP"?"Scaled from €"+billTotal().toFixed(2)+" using actual payment of £"+paidGbp.toFixed(2)+"\n\n":"\n")+people.map((n,i)=>n+": "+money(t[i])).join("\n");if(navigator.share){try{await navigator.share({title:"Bill Splitter",text:s})}catch(e){}}else{await navigator.clipboard.writeText(s);alert("Totals copied.")}}
 function setCurrency(c){currency=c;save();renderCurrency();render()}
